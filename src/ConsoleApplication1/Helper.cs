@@ -36,13 +36,13 @@ namespace ConsoleApplication1
             return Expression.Lambda<Action<TCommand>>(call, param);
         }
 
-        public static Expression<Action<Configuration>> RegisterCommandHandlerExpression<TCommand>(
+        public static Expression<Action<IConfiguration>> RegisterCommandHandlerExpression<TCommand>(
             Expression<Action<TCommand>> handleExpression)
         {
-            var param = Expression.Parameter(typeof (Configuration), "cfg");
-            var configMi = typeof (Configuration).GetMethod("Subscribe").MakeGenericMethod(typeof (TCommand));
+            var param = Expression.Parameter(typeof (IConfiguration), "cfg");
+            var configMi = typeof(IConfiguration).GetMethod("Subscribe").MakeGenericMethod(typeof(TCommand));
             var call = Expression.Call(param, configMi, handleExpression);
-            return Expression.Lambda<Action<Configuration>>(call, param);
+            return Expression.Lambda<Action<IConfiguration>>(call, param);
         }
 
     }

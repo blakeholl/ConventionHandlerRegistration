@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
@@ -13,7 +15,7 @@ namespace ConsoleApplication1
 
             // these are fakes infrastructure components
             IContainer container = new FakeContainer();
-            var busFactory = new BusFactory();
+            var busFactory = new FakeBusFactory();
 
             foreach (var handler in handlers)
             {
@@ -31,10 +33,9 @@ namespace ConsoleApplication1
 
                 var factoryExpression = factoryMethodInfo.Invoke(null, new object[] { container });
                 var handlerExpression = handlerMethodInfo.Invoke(null, new[] {factoryExpression});
-                var configureExpression = configureMethodInfo.Invoke(null, new[] {handlerExpression});
+                var configureExpression = (Expression<Action<IConfiguration>>) configureMethodInfo.Invoke(null, new[] { handlerExpression });
 
-                var ce = (dynamic) configureExpression;
-                busFactory.Configure(cfg => ce.Compile()(cfg));
+                busFactory.Configure(cfg => configureExpression.Compile()(cfg));
             }
 
             var bus = busFactory.Create();
@@ -44,26 +45,5 @@ namespace ConsoleApplication1
             bus.Send(new CommandD());
             Console.Read();
         }
-    }
-
-    public interface IHandlerByConvention
-    {
-        Type CommandType { get; }
-        Type CommandHandlerType { get; }
-        Type InterfaceType { get; }
-    }
-
-    public class HandlerByConvention : IHandlerByConvention
-    {
-        internal HandlerByConvention(Type commandType, Type commandHandlerType, Type interfaceType)
-        {
-            InterfaceType = interfaceType;
-            CommandHandlerType = commandHandlerType;
-            CommandType = commandType;
-        }
-
-        public Type CommandType { get; private set; }
-        public Type CommandHandlerType { get; private set; }
-        public Type InterfaceType { get; private set; }
     }
 }
