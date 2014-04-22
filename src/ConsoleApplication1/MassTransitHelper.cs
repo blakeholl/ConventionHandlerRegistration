@@ -16,6 +16,8 @@ namespace ConsoleApplication1
 {
     internal static class MassTransitHelper
     {
+        // this is just some clever code to help auto register my message handlers.  This is not intended for production use
+
         private static IEnumerable<IHandlerByConvention> GetHandlersByConvention(Assembly assembly)
         {
             return assembly.GetTypes()
@@ -52,22 +54,9 @@ namespace ConsoleApplication1
             Expression<Action<CommandA>> asd = a => HandlerSubscriptionExtensions.Handler(null, ignore);
             var mce = asd.Body as MethodCallExpression;
             var configMi = mce.Method.GetGenericMethodDefinition().MakeGenericMethod(new[] { typeof(TCommand) });
-
-            //ServiceBusFactory.New(cfg => cfg.Subscribe(subs => subs.Handler<CommandA>(msg =>
-            //{
-            //    var t = new CommandAHandler();
-            //    t.Handle(msg);
-            //})));
-
             var param = Expression.Parameter(typeof (SubscriptionBusServiceConfigurator), "cfg");
-            //var configMi = typeof(IConfiguration).GetMethod("Subscribe").MakeGenericMethod(typeof(TCommand));
             var call = Expression.Call(null, configMi, param, handleExpression);
             return Expression.Lambda<Action<SubscriptionBusServiceConfigurator>>(call, param);
-        }
-
-        private static MethodInfo FindMethodInfoByExample(MethodCallExpression expression)
-        {
-            return expression.Method;
         }
 
         public static void ConfigureBusFactory(
