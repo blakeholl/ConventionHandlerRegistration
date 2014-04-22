@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Reflection;
+using MassTransit;
 using Ninject;
 
 namespace ConsoleApplication1
@@ -9,15 +10,16 @@ namespace ConsoleApplication1
         static void Main(string[] args)
         {
             var kernel = new StandardKernel();
-            var busFactory = new FakeBusFactory();
+            var bus = ServiceBusFactory.New(cfg =>
+            {
+                cfg.ReceiveFrom("loopback://localhost/queue");
+                MassTransitHelper.ConfigureBusFactory(cfg, Assembly.GetExecutingAssembly(), kernel);
+            });
 
-            MassTransitHelper.ConfigureBusFactory(busFactory, Assembly.GetExecutingAssembly(), kernel);
-
-            var bus = busFactory.Create();
-            bus.Send(new CommandA());
-            bus.Send(new CommandB());
-            bus.Send(new CommandC());
-            bus.Send(new CommandD());
+            bus.Endpoint.Send(new CommandA());
+            bus.Endpoint.Send(new CommandB());
+            bus.Endpoint.Send(new CommandC());
+            bus.Endpoint.Send(new CommandD());
             Console.Read();
         }
     }

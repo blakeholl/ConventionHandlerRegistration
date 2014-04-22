@@ -3,9 +3,14 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Runtime.Remoting.Messaging;
+using MassTransit;
+using MassTransit.BusConfigurators;
+using MassTransit.SubscriptionConfigurators;
 using Ninject;
 using Ninject.Parameters;
 using Ninject.Syntax;
+using RabbitMQ.Client.Impl;
 
 namespace ConsoleApplication1
 {
@@ -40,17 +45,33 @@ namespace ConsoleApplication1
             return Expression.Lambda<Action<TCommand>>(call, param);
         }
 
-        private static Expression<Action<IConfiguration>> RegisterCommandHandlerExpression<TCommand>(
+        private static Expression<Action<SubscriptionBusServiceConfigurator>> RegisterCommandHandlerExpression<TCommand>(
             Expression<Action<TCommand>> handleExpression)
         {
-            var param = Expression.Parameter(typeof (IConfiguration), "cfg");
-            var configMi = typeof(IConfiguration).GetMethod("Subscribe").MakeGenericMethod(typeof(TCommand));
-            var call = Expression.Call(param, configMi, handleExpression);
-            return Expression.Lambda<Action<IConfiguration>>(call, param);
+            Action<object> ignore = null;
+            Expression<Action<CommandA>> asd = a => HandlerSubscriptionExtensions.Handler(null, ignore);
+            var mce = asd.Body as MethodCallExpression;
+            var configMi = mce.Method.GetGenericMethodDefinition().MakeGenericMethod(new[] { typeof(TCommand) });
+
+            //ServiceBusFactory.New(cfg => cfg.Subscribe(subs => subs.Handler<CommandA>(msg =>
+            //{
+            //    var t = new CommandAHandler();
+            //    t.Handle(msg);
+            //})));
+
+            var param = Expression.Parameter(typeof (SubscriptionBusServiceConfigurator), "cfg");
+            //var configMi = typeof(IConfiguration).GetMethod("Subscribe").MakeGenericMethod(typeof(TCommand));
+            var call = Expression.Call(null, configMi, param, handleExpression);
+            return Expression.Lambda<Action<SubscriptionBusServiceConfigurator>>(call, param);
+        }
+
+        private static MethodInfo FindMethodInfoByExample(MethodCallExpression expression)
+        {
+            return expression.Method;
         }
 
         public static void ConfigureBusFactory(
-            FakeBusFactory busFactory,
+            ServiceBusConfigurator configurator,
             Assembly assembly,
             IKernel kernel)
         {
@@ -72,9 +93,9 @@ namespace ConsoleApplication1
 
                 var factoryExpression = factoryMethodInfo.Invoke(null, new object[] { kernel });
                 var handlerExpression = handlerMethodInfo.Invoke(null, new[] { factoryExpression });
-                var configureExpression = (Expression<Action<IConfiguration>>)configureMethodInfo.Invoke(null, new[] { handlerExpression });
+                var configureExpression = (Expression<Action<SubscriptionBusServiceConfigurator>>)configureMethodInfo.Invoke(null, new[] { handlerExpression });
 
-                busFactory.Configure(configureExpression.Compile());
+                configurator.Subscribe(configureExpression.Compile());
             }
         }
 
